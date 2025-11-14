@@ -1,40 +1,64 @@
-# src/run_pipeline.py
+"""
+CLI 파이프라인: 이미지 파일 경로를 받아 학습용 멜로디 생성까지 수행
+"""
 import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
-from openai import OpenAI
-from vision_to_query import image_to_query
-from search_lyrics import LyricsSearcher
-from agents import debate_and_merge
-from compose_prompt import build_suno_prompt
 
-def main(image_path):
+# 프로젝트 루트를 Python 경로에 추가
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from src.core.mureka_utils import save_mureka_audio
+from src.core.workflow import run_full_pipeline
+
+
+def main(image_path: str | os.PathLike[str]) -> None:
+    """이미지 파일 경로를 받아 전체 파이프라인 실행"""
     load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY 없어서 진행 불가")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        raise RuntimeError("OPENAI_API_KEY가 설정되지 않았습니다.")
 
-    # 1) 이미지 → 쿼리
-    query = image_to_query(image_path, api_key)
-    print("쿼리:", query)
+    image_file = Path(image_path)
+    if not image_file.exists():
+        raise FileNotFoundError(f"이미지 파일을 찾을 수 없습니다: {image_path}")
 
-    # 2) 벡터 검색
-    searcher = LyricsSearcher(
-        index_path="/Users/baehanjun/PythonProjects/ai-project/data/songs.index",
-        meta_path="/Users/baehanjun/PythonProjects/ai-project/data/songs_meta.pkl",
-        api_key=api_key
+    # 이미지 파일 읽기
+    image_bytes = image_file.read_bytes()
+    print(f"[입력] 이미지: {image_path}")
+
+    # 전체 파이프라인 실행
+    mureka_key = os.getenv("MUREKA_API_KEY")
+    result = run_full_pipeline(
+        image_bytes,
+        openai_key,
+        mureka_key=mureka_key,
+        wait_for_audio=True,
     )
-    hits = searcher.search(query, k=5)
-    print("후보 개수:", len(hits))
 
-    # 3) MAS로 합의 가사
-    client = OpenAI(api_key=api_key)
-    merged = debate_and_merge(client, query, hits)
-    print("\n[합의 가사]\n", merged)
+    print("\n[추출 텍스트]\n", result["study_text"])
+    print("\n[멜로디 가이드]\n", result["mnemonic_plan"])
 
-    # 4) Suno 프롬프트
-    suno_payload = build_suno_prompt(merged)
-    print("\n[Suno 요청 페이로드]\n", suno_payload)
+    if mureka_key and "mureka_result" in result:
+        mureka_result = result["mureka_result"]
+        print("\n[Mureka 결과]\n", mureka_result)
+
+        # 오디오 파일 저장
+        audio_paths = save_mureka_audio(mureka_result)
+        if audio_paths:
+            print("\n[저장 완료]")
+            for path in audio_paths:
+                print(f"- {path}")
+        else:
+            print("\n[Mureka] 오디오 URL을 응답에서 찾지 못했습니다.")
+    elif not mureka_key:
+        print("\n[Mureka] MUREKA_API_KEY가 없어서 노래 생성을 건너뜁니다.")
+
 
 if __name__ == "__main__":
     # 예시 경로 수정 필요
-    main("/Users/baehanjun/Desktop/IMG_7724.jpg")
+    main("/Users/baehanjun/Desktop/스크린샷 2025-11-11 오후 6.28.45.png")

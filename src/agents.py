@@ -1,53 +1,41 @@
 # src/agents.py
-from openai import OpenAI
+SYSTEM_CORE = (
+    "너는 학습자를 위한 기억 보조 작곡가다. "
+    "입력된 학습 텍스트를 쉽고 경쾌하게 외울 수 있도록 리듬, 멜로디, 반복 구조를 설계해라. "
+    "한국어로 답하고, 간결하지만 구체적으로 안내해."
+)
 
-SYSTEM_CORE = "너는 작사 보조 시스템이다 한국어만 사용 간결하고 중복 회피"
+def build_mnemonic_plan(client, study_text, model="gpt-4o-mini"):
+    """
+    Create a structured plan describing how to sing the study text so that the
+    learner can memorise it easily.
+    """
+    prompt = f"""
+다음 학습용 텍스트를 빠르게 외울 수 있도록 멜로디 가이드를 만들어라.
 
-def call_agent(client, role_name, instruction, context):
-    msg = f"[역할]{role_name}\n[지시]{instruction}\n[콘텍스트]\n{context}\n[출력] 한 단락 제안과 핵심 키워드 5개"
+[학습 텍스트]
+{study_text}
+
+[출력 포맷]
+1) 요약 포인트 3~5개 (암기할 핵심 단위)
+2) 추천 리듬/템포/박자 (예: 4/4, 90BPM, 스윙 등)
+3) 음 높이 가이드 (계이름 또는 숫자음으로 한 줄, 필요한 경우 두 줄)
+4) 반복 구조와 하이라이트 (후렴, 콜앤리스폰스 등)
+5) 최종 가창 가이드 가사 (학습 텍스트를 적절히 변형하되 의미 유지, 4~8줄)
+6) 보너스 암기 팁 한 줄
+
+조건:
+- 학습 텍스트의 핵심 용어는 가창 가이드에 반드시 포함.
+- 음 높이는 초보자가 따라 부르기 쉽게 단계적으로 움직이도록 제안.
+- 다른 설명은 하지 말고 위 포맷만 채워서 출력.
+""".strip()
+
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",  # 예시 확실하지 않음
+        model=model,
         messages=[
-            {"role":"system","content":SYSTEM_CORE},
-            {"role":"user","content":msg}
+            {"role": "system", "content": SYSTEM_CORE},
+            {"role": "user", "content": prompt},
         ],
-        temperature=0.7
+        temperature=0.5,
     )
     return resp.choices[0].message.content.strip()
-
-def debate_and_merge(client, query, hits):
-    # 컨텍스트 생성
-    snippets = []
-    for h in hits:
-        # 너무 길면 200자 제한
-        lyric = h.get("text","")
-        if len(lyric) > 200:
-            lyric = lyric[:200] + "..."
-        snippets.append(f"{h['title']} / {h['singer']} / {lyric}")
-    ctx = f"쿼리: {query}\n후보:\n" + "\n".join(f"- {s}" for s in snippets)
-
-    a1 = call_agent(client, "감성 에이전트", "정서 톤과 감정선 제안", ctx)
-    a2 = call_agent(client, "기분 에이전트", "분위기 장르 템포 태그 제안", ctx)
-    a3 = call_agent(client, "이성 에이전트", "서사 흐름 구간 제목 구조 제안", ctx)
-
-    merge_prompt = f"""
-다음 세 제안을 결합해 작사 가이드 한 버전으로 합의본을 만들어라
-- 감성: {a1}
-- 기분: {a2}
-- 이성: {a3}
-출력 형식
-1) 핵심 키워드 8개
-2) 분위기 태그 6개
-3) 서사 구조 한 줄 목차
-4) 8마디 분량 가사 초안 한국어
-    """.strip()
-
-    r = client.chat.completions.create(
-        model="gpt-4o-mini",  # 예시 확실하지 않음
-        messages=[
-            {"role":"system","content":SYSTEM_CORE},
-            {"role":"user","content":merge_prompt}
-        ],
-        temperature=0.6
-    )
-    return r.choices[0].message.content.strip()

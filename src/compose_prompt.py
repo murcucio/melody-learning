@@ -1,8 +1,15 @@
 # src/compose_prompt.py
-def build_suno_prompt(merge_text):
+def build_mureka_payload(mnemonic_plan, study_text):
+    """
+    Build a request payload for Mureka's song generation endpoint.
+    Reference: https://platform.mureka.ai/docs/en/quickstart.html
+    """
+    prompt = (
+        "bright educational jingle, clear Korean diction, playful synth pop,"
+        " memorable hook, repetition for easy memorisation"
+    )
     return {
-        "style": "k-pop ballad modern city pop",
-        "language": "ko",
-        "prompt": "감성적 서정 도시적 세련 따뜻한 잔향",
-        "lyrics": merge_text
+        "lyrics": f"{study_text}\n\n[Mnemonic Guide]\n{mnemonic_plan}",
+        "model": "auto",
+        "prompt": prompt,
     }

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>학습용 멜로디 생성기</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #f5f6fa;
+        color: #1f2430;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 32px 24px 64px;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+      }
+      p.lead {
+        margin-top: 0;
+        margin-bottom: 24px;
+        color: #4f5b76;
+      }
+      section {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 12px 30px rgba(31, 36, 48, 0.08);
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 12px;
+      }
+      input[type="file"] {
+        display: block;
+        width: 100%;
+        margin-bottom: 16px;
+      }
+      button {
+        background: #3b82f6;
+        color: #ffffff;
+        border: none;
+        border-radius: 999px;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(59, 130, 246, 0.25);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .status {
+        font-size: 0.95rem;
+        color: #2563eb;
+        margin-top: 12px;
+        min-height: 1.2em;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 16px;
+        border-radius: 12px;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .results h2 {
+        margin-top: 0;
+      }
+      .audio-list audio {
+        display: block;
+        margin-bottom: 12px;
+        width: 100%;
+      }
+      footer {
+        text-align: center;
+        color: #667295;
+        font-size: 0.85rem;
+        margin-top: 48px;
+      }
+    </style>
+    <script>
+      window.BACKEND_BASE = window.BACKEND_BASE || "http://localhost:8000";
+    </script>
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>이미지 → 학습 멜로디 생성</h1>
+        <p class="lead">
+          이미지에 포함된 학습용 텍스트를 추출해 기억하기 쉬운 멜로디와 함께 Mureka 곡까지 생성합니다.
+          브라우저는 파일 업로드와 결과 표시만 담당하고, 실제 처리는 백엔드 API가 수행합니다.
+        </p>
+      </header>
+
+      <section>
+        <label for="image-input">이미지 업로드</label>
+        <input id="image-input" type="file" accept="image/png,image/jpeg" />
+        <label>
+          <input id="wait-audio" type="checkbox" checked />
+          오디오 생성 완료까지 기다리기
+        </label>
+        <button id="generate-btn" type="button">멜로디 생성</button>
+        <div id="status" class="status">이미지를 업로드하면 처리를 시작합니다.</div>
+      </section>
+
+      <section class="results">
+        <h2>결과</h2>
+        <h3>추출된 텍스트</h3>
+        <pre id="study-text">-</pre>
+
+        <h3>멜로디 가이드</h3>
+        <pre id="plan-text">-</pre>
+
+        <h3>오디오 결과</h3>
+        <div id="audio-output" class="audio-list">-</div>
+      </section>
+
+      <footer>
+        API 백엔드 주소: <code id="backend-url"></code>
+      </footer>
+    </main>
+  </body>
+</html>
+

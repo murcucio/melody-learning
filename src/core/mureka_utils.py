@@ -37,7 +37,7 @@ def save_audio_files(
         try:
             file_ext = _infer_extension(url)
             timestamp = int(time.time())
-            file_name = f"mureka_{timestamp}_{idx}.{file_ext}"
+            file_name = f"audio_{timestamp}_{idx}.{file_ext}"
             dest = output_path / file_name
 
             resp = requests.get(url, timeout=timeout)
@@ -45,7 +45,7 @@ def save_audio_files(
             dest.write_bytes(resp.content)
             saved_files.append(str(dest.resolve()))
         except Exception as exc:  # pragma: no cover - log only
-            print(f"[Mureka] 오디오 저장 실패 ({url}): {exc}")
+            print(f"[오디오] 저장 실패 ({url}): {exc}")
 
     return saved_files
 
@@ -65,11 +65,18 @@ def save_mureka_audio(
 def _iter_audio_urls(payload: object) -> Iterable[str]:
     if isinstance(payload, dict):
         for key, value in payload.items():
-            if key in {"audio_url", "song_url", "url"} and _looks_like_audio(value):
+            # Suno 형식: "audioUrl" 키 지원 추가
+            if key in {"audio_url", "song_url", "url", "audioUrl", "sourceAudioUrl", "streamAudioUrl"} and _looks_like_audio(value):
                 yield value  # type: ignore[misc]
-            elif key in {"audio_urls", "song_urls"} and isinstance(value, list):
+            elif key in {"audio_urls", "song_urls", "tracks"} and isinstance(value, list):
+                # "tracks"는 Suno 응답 형식 (리스트 안에 dict들이 있음)
                 for item in value:
-                    if _looks_like_audio(item):
+                    if isinstance(item, dict):
+                        # dict 안에서 audioUrl 찾기
+                        for audio_key in {"audioUrl", "sourceAudioUrl", "streamAudioUrl", "audio_url", "song_url", "url"}:
+                            if audio_key in item and _looks_like_audio(item[audio_key]):
+                                yield item[audio_key]  # type: ignore[misc]
+                    elif _looks_like_audio(item):
                         yield item  # type: ignore[misc]
             else:
                 yield from _iter_audio_urls(value)

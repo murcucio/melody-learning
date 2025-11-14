@@ -13,9 +13,11 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.agents import build_mnemonic_plan
-from src.compose_prompt import build_mureka_payload
-from src.mureka_client import MurekaClient
+from src.compose_prompt import build_suno_payload
+from src.suno_client import SunoClient
 from src.vision_to_query import image_bytes_to_study_text
+from src.lyrics_generator import generate_lyrics
+from src.lyrics_extractor import extract_final_lyrics
 
 
 def extract_study_text(
@@ -43,23 +45,30 @@ def extract_study_text_from_base64(
 def create_mnemonic_plan(
     study_text: str,
     api_key: str,
+    final_lyrics: str = None,
     model: str = "gpt-4o-mini",
 ) -> str:
     client = OpenAI(api_key=api_key)
-    return build_mnemonic_plan(client, study_text, model=model)
+    return build_mnemonic_plan(client, study_text, final_lyrics=final_lyrics, model=model)
 
 
-def build_mureka_request(study_text: str, mnemonic_plan: str) -> Dict[str, Any]:
-    return build_mureka_payload(mnemonic_plan, study_text)
+def build_suno_request(study_text: str, mnemonic_plan: str, final_lyrics: str = None, api_key: Optional[str] = None) -> Dict[str, Any]:
+    # 최종 가사가 제공되면 그걸 사용, 없으면 멜로디 가이드에서 추출
+    if not final_lyrics:
+        final_lyrics = extract_final_lyrics(mnemonic_plan)
+        if not final_lyrics:
+            final_lyrics = study_text  # 폴백
+    
+    return build_suno_payload(mnemonic_plan, study_text, final_lyrics=final_lyrics, api_key=api_key)
 
 
-def request_mureka_song(
+def request_suno_song(
     payload: Dict[str, Any],
     api_key: str,
     wait: bool = True,
     **client_kwargs: Any,
 ) -> Dict[str, Any]:
-    client = MurekaClient(api_key=api_key, **client_kwargs)
+    client = SunoClient(api_key=api_key, **client_kwargs)
     if wait:
         return client.generate_and_wait(payload)
     task_id = client.create_song(payload)
@@ -69,25 +78,25 @@ def request_mureka_song(
 def run_full_pipeline(
     image_bytes: bytes,
     openai_key: str,
-    mureka_key: Optional[str] = None,
+    suno_key: Optional[str] = None,
     *,
     openai_model: str = "gpt-4o-mini",
     wait_for_audio: bool = True,
-    **mureka_kwargs: Any,
+    **suno_kwargs: Any,
 ) -> Dict[str, Any]:
     study_text = extract_study_text(image_bytes, openai_key, model=openai_model)
     mnemonic_plan = create_mnemonic_plan(study_text, openai_key, model=openai_model)
-    payload = build_mureka_request(study_text, mnemonic_plan)
+    payload = build_suno_request(study_text, mnemonic_plan)
 
     result: Dict[str, Any] = {
         "study_text": study_text,
         "mnemonic_plan": mnemonic_plan,
-        "mureka_payload": payload,
+        "suno_payload": payload,
     }
 
-    if mureka_key:
-        song_result = request_mureka_song(payload, mureka_key, wait=wait_for_audio, **mureka_kwargs)
-        result["mureka_result"] = song_result
+    if suno_key:
+        song_result = request_suno_song(payload, suno_key, wait=wait_for_audio, **suno_kwargs)
+        result["suno_result"] = song_result
 
     return result
 

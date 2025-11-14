@@ -32,31 +32,31 @@ def main(image_path: str | os.PathLike[str]) -> None:
     print(f"[입력] 이미지: {image_path}")
 
     # 전체 파이프라인 실행
-    mureka_key = os.getenv("MUREKA_API_KEY")
+    suno_key = os.getenv("SUNO_API_KEY")
     result = run_full_pipeline(
         image_bytes,
         openai_key,
-        mureka_key=mureka_key,
+        suno_key=suno_key,
         wait_for_audio=True,
     )
 
     print("\n[추출 텍스트]\n", result["study_text"])
     print("\n[멜로디 가이드]\n", result["mnemonic_plan"])
 
-    if mureka_key and "mureka_result" in result:
-        mureka_result = result["mureka_result"]
-        print("\n[Mureka 결과]\n", mureka_result)
+    if suno_key and "suno_result" in result:
+        suno_result = result["suno_result"]
+        print("\n[Suno 결과]\n", suno_result)
 
         # 오디오 파일 저장
-        audio_paths = save_mureka_audio(mureka_result)
+        audio_paths = save_mureka_audio(suno_result)
         if audio_paths:
             print("\n[저장 완료]")
             for path in audio_paths:
                 print(f"- {path}")
         else:
-            print("\n[Mureka] 오디오 URL을 응답에서 찾지 못했습니다.")
-    elif not mureka_key:
-        print("\n[Mureka] MUREKA_API_KEY가 없어서 노래 생성을 건너뜁니다.")
+            print("\n[Suno] 오디오 URL을 응답에서 찾지 못했습니다.")
+    elif not suno_key:
+        print("\n[Suno] SUNO_API_KEY가 없어서 노래 생성을 건너뜁니다.")
 
 
 if __name__ == "__main__":
